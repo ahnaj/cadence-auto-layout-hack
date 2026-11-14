@@ -1,0 +1,27 @@
+# Private configuration, licensed technology, native databases and run logs
+.local/
+runs/
+backups/
+*.oa
+*.oalib
+*.rul
+*.cdslck*
+*.log
+*.console
+*.out
+*.raw
+*.psf
+*.cdsinit
+*.cdsenv
+cds.lib
+lib.defs
+data.dm
+master.tag
+*.tar*
+*.zip
+*.pem
+*.key
+.env
+__pycache__/
+*.py[cod]
+.venv/

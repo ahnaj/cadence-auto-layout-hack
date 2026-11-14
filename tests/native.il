@@ -1,0 +1,10 @@
+; SPDX-License-Identifier: MIT
+let((h r)
+ h=alHeap(20)
+ foreach(n '(9 2 8 1 7 3) alPush(h list(n n)))
+ foreach(n '(1 2 3 7 8 9)
+  r=alPop(h) unless(car(r)==n error("Heap order mismatch")))
+ unless(alPop(h)==nil error("Empty heap result"))
+ unless(alOverlap(alBox(0 0 1 1) alBox(1.1 0 2 1) 0.2) error("Spacing check failed"))
+ when(alOverlap(alBox(0 0 1 1) alBox(1.2 0 2 1) 0.2) error("Exact spacing rejected"))
+ printf("AL_NATIVE_TESTS_OK\n"))

@@ -1,0 +1,69 @@
+{
+  "technology_library": "NCSU_TechLib_tsmc03d",
+  "devices": [
+    {
+      "kind": "nmos",
+      "source_lib": "NCSU_Analog_Parts",
+      "source_cell": "nmos4",
+      "width_param": "w_microns",
+      "length_param": "l_microns",
+      "layout_lib": "NCSU_TechLib_tsmc03d",
+      "layout_cell": "nmos",
+      "layout_width_param": "w_microns",
+      "layout_length_param": "l_microns",
+      "active_layer": "nactive"
+    },
+    {
+      "kind": "pmos",
+      "source_lib": "NCSU_Analog_Parts",
+      "source_cell": "pmos4",
+      "width_param": "w_microns",
+      "length_param": "l_microns",
+      "layout_lib": "NCSU_TechLib_tsmc03d",
+      "layout_cell": "pmos",
+      "layout_width_param": "w_microns",
+      "layout_length_param": "l_microns",
+      "active_layer": "pactive"
+    }
+  ],
+  "routing_layers": [
+    "metal1",
+    "metal2",
+    "metal3"
+  ],
+  "cut_layers": [
+    "via",
+    "via2",
+    "cp",
+    "cc"
+  ],
+  "routing_vias": [
+    "M2_M1",
+    "M3_M2"
+  ],
+  "gate_contact": "M1_POLY",
+  "substrate_tie": "M1_P",
+  "well_tie": "NTAP",
+  "poly_layer": "poly",
+  "well_layer": "nwell",
+  "well_margin": null,
+  "rail_width": null,
+  "layout_margin": null,
+  "diffusion_break": null,
+  "tie_reserve": null,
+  "max_search_nodes": 200000,
+  "routing_grid_multiple": 1,
+  "drc_rules": "$CDK_DIR/techfile/divaDRC.rul",
+  "extraction_rules": "$CDK_DIR/techfile/divaEXT.rul",
+  "lvs_rules": "$CDK_DIR/techfile/divaLVS.rul",
+  "example_n_width": null,
+  "example_p_width": null,
+  "example_length": null,
+  "candidate_heights": [],
+  "via_landing_overrides": [],
+  "label_height": 0.3,
+  "startup_file": "$CDK_DIR/cdssetup/cdsinit",
+  "placement_style": "independent",
+  "diffusion_sharing": true,
+  "routing_margin": 0
+}

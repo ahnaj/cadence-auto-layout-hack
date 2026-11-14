@@ -1,0 +1,5 @@
+#!/bin/sh
+# SPDX-License-Identifier: MIT
+set -eu
+ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+exec env -u LD_LIBRARY_PATH -u PYTHONHOME -u PYTHONPATH python3 "$ROOT/scripts/autolayout.py" "$@"

@@ -1,0 +1,39 @@
+; SPDX-License-Identifier: MIT
+procedure(alGenerate(sourceLib cell view outputLib outputPath seed height dryRun)
+ let((designs design library tech plan mult clone expanded passes added)
+  when(sourceLib==outputLib error("Source and output libraries must differ"))
+  when(ddGetObj(outputLib) || isDir(outputPath) error("Output library already exists; choose a fresh name"))
+  designs=makeTable('alDesigns nil)
+  design=alReadCell(sourceLib cell view designs nil)
+  when(design["children"] error("Hierarchical physical synthesis is not yet supported by this engine"))
+  expanded=nil
+  foreach(i design["mos"]
+   for(k 1 fix(i["m"])
+    clone=makeTable('alInstance nil)
+    foreach(key i clone[key]=i[key])
+    when(i["m"]>1 clone["name"]=sprintf(nil "%s__m%d" i["name"] k))
+    expanded=cons(clone expanded)))
+  design["mos"]=reverse(expanded)
+  printf("AL_SOURCE devices=%d terminals=%d\n" length(design["mos"]) length(design["terms"]))
+  if(dryRun then
+   printf("AL_DRY_RUN no_database_writes\n")
+  else
+   library=ddCreateLib(outputLib outputPath)
+   unless(library error("Native library creation failed"))
+   unless(techBindTechFile(library alCfg("technology_library")) error("Cannot attach technology"))
+   tech=alProbeTech(outputLib designs)
+   plan=alLeafPlan(outputLib design tech seed height)
+   dbSave(plan["cv"])
+   printf("AL_CANDIDATE width=%g height=%g area=%g\n" plan["width"] plan["height"] plan["width"]*plan["height"])
+   ALconfig=cons(list("candidate_seed" seed) ALconfig)
+   unless(errset(alRoute(plan) t)
+    dbSave(plan["cv"]) dbClose(plan["cv"]) error("Routing failed; incomplete candidate preserved"))
+   passes=0 added=1
+   while(added>0 && passes<8
+    added=alHealSameNet(plan) passes=passes+1)
+   printf("AL_GAP_REPAIR passes=%d last_additions=%d\n" passes added)
+   alPhysicalPins(plan design)
+   dbSave(plan["cv"]) dbClose(plan["cv"])
+   alAudit(outputLib cell)
+   printf("AL_GENERATED\n"))
+  t))
