@@ -1,4 +1,4 @@
-# cadence-auto-layout-workaround
+# cadence-auto-layout-hack
 
 Experimental CMOS layout synthesis for licensed Cadence Virtuoso, with a SKILL placement and routing engine and a thin Python CLI. It reads schematic connectivity, instantiates installed MOS PCells, searches mirrored diffusion-sharing orders, routes actual metal and vias, creates physical pins and terminal-name displays, and runs Diva DRC, extraction and LVS.
 
@@ -12,13 +12,44 @@ Current input: flat static CMOS schematics composed of configured NMOS/PMOS symb
 
 Physical synthesis of hierarchical cells, folding, analog design, timing closure, and a global area optimum are **not implemented**.
 
+## Layout examples
+
+Actual Virtuoso exports of the project's original test fixtures. Each pictured
+candidate completed native Diva extraction, passed DRC with zero violations, and
+matched its source schematic in LVS. These are examples, not a claim of a global
+area optimum; new outputs require their own verification.
+
+### Same area, different routing
+
+Both NAND2 candidates use placement seed 0 and measure **6.72 × 6.12 µm**
+(**41.1264 µm²**). Changing the routing seed changes the metal routes.
+
+| Routing seed 17 | Routing seed 18 |
+| --- | --- |
+| ![NAND2 layout with routing seed 17 and labeled A, B, Y, VP and VN pins](docs/images/nand2-seed-17.png) | ![NAND2 layout with routing seed 18 and different supply and signal routes](docs/images/nand2-seed-18.png) |
+
+### AOI21
+
+**9.12 × 4.92 µm**, area **44.8704 µm²**.
+
+![Generated AOI21 layout with transistor rows, routed connections and physical pin labels](docs/images/aoi21.png)
+
+### XOR2
+
+**17.76 × 9.60 µm**, area **170.496 µm²**.
+
+![Generated XOR2 layout with transistor rows, multilayer routing and physical pin labels](docs/images/xor2.png)
+
+See [image provenance](docs/images/README.md), [benchmarks](docs/BENCHMARKS.md),
+and [seed reproducibility results](docs/SEEDS.md).
+
 ## Install
 
 Cadence, its licenses, and the NCSU/TSMC PDK are separate dependencies and are not distributed here. Do not copy them into this repository.
 
 ```sh
-git clone https://github.com/ahnaj/cadence-auto-layout-workaround.git
-cd cadence-auto-layout-workaround
+git clone https://github.com/ahnaj/cadence-auto-layout-hack.git
+cd cadence-auto-layout-hack
 # First source your site's Cadence/CDK environment.
 ./install.sh /absolute/path/to/your/cds.lib
 ```
