@@ -33,6 +33,7 @@ procedure(alGenerate(sourceLib cell view outputLib outputPath seed height dryRun
     added=alHealSameNet(plan) passes=passes+1)
    printf("AL_GAP_REPAIR passes=%d last_additions=%d\n" passes added)
    alPhysicalPins(plan design)
+   alWriteGeometry(plan)
    dbSave(plan["cv"]) dbClose(plan["cv"])
    alAudit(outputLib cell)
    printf("AL_GENERATED\n"))

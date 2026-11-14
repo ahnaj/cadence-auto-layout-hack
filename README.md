@@ -1,4 +1,4 @@
-# cadence-skill-autolayout
+# cadence-auto-layout-workaround
 
 Experimental CMOS layout synthesis for licensed Cadence Virtuoso, with a SKILL placement and routing engine and a thin Python CLI. It reads schematic connectivity, instantiates installed MOS PCells, searches mirrored diffusion-sharing orders, routes actual metal and vias, creates physical pins and terminal-name displays, and runs Diva DRC, extraction and LVS.
 
@@ -17,8 +17,8 @@ Physical synthesis of hierarchical cells, folding, analog design, timing closure
 Cadence, its licenses, and the NCSU/TSMC PDK are separate dependencies and are not distributed here. Do not copy them into this repository.
 
 ```sh
-git clone <repository-url> cadence-skill-autolayout
-cd cadence-skill-autolayout
+git clone https://github.com/ahnaj/cadence-auto-layout-workaround.git
+cd cadence-auto-layout-workaround
 # First source your site's Cadence/CDK environment.
 ./install.sh /absolute/path/to/your/cds.lib
 ```
@@ -41,6 +41,20 @@ bin/autolayout --cds-lib /path/to/cds.lib generate \
   --optimize fixed --height 6.12 --iterations 4
 bin/autolayout report /path/to/run/summary.json
 ```
+
+### Reproducible routing seeds
+
+Omitting --seed chooses a fresh random routing seed and records it in the report. Use a positive explicit seed to repeat a run. Hold placement fixed to explore different routes at the same dimensions:
+
+```sh
+bin/autolayout --cds-lib /path/to/cds.lib generate \
+  --source-lib MY_CIRCUITS --cell custom_gate --output-lib MY_ROUTES \
+  --height 6.12 --optimize fixed --placement-seed 0 --seed 17 --iterations 4
+```
+
+This tries routing seeds 17, 18, 19 and 20 with the same placement and height. Without --placement-seed, the existing placement search advances its ordering index for each candidate. Re-run an individual candidate with its recorded placement_seed and routing_seed.
+
+Reports include both seeds, geometry/routing fingerprints and all verified equal-area alternatives. Different seeds can converge to the same route or fail; native DRC/LVS remains mandatory. Seed 0 retains the original deterministic router for baseline reproduction. See [seed regression evidence](docs/SEEDS.md).
 
 Each run receives a fresh directory and private `cds.lib` which includes your source library definitions. Candidate libraries are named `MY_AUTO_c00`, etc. for multiple iterations. The summary identifies the smallest **verified** candidate. Failed candidates and real logs remain for diagnosis; no candidate is silently promoted.
 

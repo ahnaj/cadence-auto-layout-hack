@@ -1,12 +1,17 @@
 ; SPDX-License-Identifier: MIT
 procedure(alHeap(capacity)
  let((h) h=makeTable('alHeap nil) h["data"]=makeVector(capacity+1 nil) h["size"]=0 h))
+procedure(alHeapLess(a b)
+ car(a)<car(b) || (car(a)==car(b) &&
+  if(cadddr(a) cadddr(a) 0)<if(cadddr(b) cadddr(b) 0)))
+procedure(alTie(r)
+ if(r["rng"] alRand(r["rng"] 2147483646) 0))
 procedure(alPush(h entry)
  let((a k parent)
   a=h["data"] k=h["size"]+1
   unless(k<length(a) error("Routing queue limit reached"))
   h["size"]=k
-  while(k>1 && car(entry)<car(a[fix(k/2)])
+  while(k>1 && alHeapLess(entry a[fix(k/2)])
    parent=fix(k/2) a[k]=a[parent] k=parent)
   a[k]=entry))
 procedure(alPop(h)
@@ -15,8 +20,8 @@ procedure(alPop(h)
   a=h["data"] root=a[1] tail=a[n] h["size"]=n-1 n=n-1 k=1
   while(2*k<=n
    child=2*k
-   when(child<n && car(a[child+1])<car(a[child]) child=child+1)
-   when(car(tail)<=car(a[child]) a[k]=tail return(root))
+   when(child<n && alHeapLess(a[child+1] a[child]) child=child+1)
+   when(!alHeapLess(a[child] tail) a[k]=tail return(root))
    a[k]=a[child] k=child)
   a[k]=tail return(root)))
 procedure(alLayer(r layer)
@@ -87,7 +92,7 @@ procedure(alSearch(r starts targets net)
   heap=alHeap(alCfg("max_search_nodes" 200000))
   cost=makeTable('alCost nil) prev=makeTable('alPrevious nil) target=makeTable('alTargets nil)
   foreach(n targets target[n]=t)
-  foreach(n starts cost[n]=0.0 alPush(heap list(0.0 n 0.0)))
+  foreach(n starts cost[n]=0.0 alPush(heap list(0.0 n 0.0 alTie(r))))
   visits=0
   while(heap["size"]>0
    entry=alPop(heap) node=cadr(entry) g=caddr(entry)
@@ -105,7 +110,7 @@ procedure(alSearch(r starts targets net)
      next=car(edge) trial=g+cadr(edge)
      when(!numberp(cost[next]) || trial<cost[next]
       cost[next]=trial prev[next]=list(node caddr(edge) cadddr(edge))
-      alPush(heap list(trial next trial))))))
+      alPush(heap list(trial next trial alTie(r)))))))
   error("No spacing-legal physical route for %s" net)))
 procedure(alCommit(r path net)
  let((p previous a b v x y segment direction nextDirection box)
@@ -135,23 +140,35 @@ procedure(alCommit(r path net)
    previous=step)
   when(segment alRect(p car(segment) cadr(segment) net))))
 procedure(alRoute(p)
- let((r tree ports path targets order)
+ let((r tree ports path targets order rank idx seed)
   r=makeTable('alRouter nil) r["plan"]=p r["tech"]=p["tech"] r["layers"]=p["tech"]["layers"]
   r["width"]=p["width"] r["height"]=p["height"] r["grid"]=p["tech"]["grid"]*alCfg("routing_grid_multiple" 1)
   r["nx"]=fix(r["width"]/r["grid"])+1 r["ny"]=fix(r["height"]/r["grid"])+1
+  seed=alCfg("routing_seed" 0)
+  when(seed>0 r["rng"]=alRng(seed))
   r["existing"]=makeTable('alExisting nil)
   foreach(v p["viaSites"]
    when(abs(caddr(v)/r["grid"]-round(caddr(v)/r["grid"]))<1e-7 &&
     abs(cadddr(v)/r["grid"]-round(cadddr(v)/r["grid"]))<1e-7
     r["existing"][sprintf(nil "%s|%s|%d|%d" car(v) cadr(v) round(caddr(v)/r["grid"]) round(cadddr(v)/r["grid"]))]=t))
   foreach(net p["ports"] order=cons(net order))
-  order=sort(order lambda((a b) length(p["ports"][a])>length(p["ports"][b])))
-  when(mod(alCfg("candidate_seed" 0) 2)==1 order=reverse(order))
+  if(r["rng"] then
+   order=alShuffle(sort(order 'alphalessp) r["rng"])
+   rank=makeTable('alNetRank nil) idx=0
+   foreach(net order rank[net]=idx idx=idx+1)
+   order=sort(order lambda((a b)
+    if(length(p["ports"][a])==length(p["ports"][b]) rank[a]<rank[b]
+     length(p["ports"][a])>length(p["ports"][b]))))
+  else
+   order=sort(order lambda((a b) length(p["ports"][a])>length(p["ports"][b])))
+   when(mod(alCfg("candidate_seed" 0) 2)==1 order=reverse(order)))
   order=append(remove(p["vdd"] remove(p["gnd"] order)) list(p["gnd"] p["vdd"]))
   p["routing"]=t
   foreach(net order
    r["cache"]=makeTable('alCache nil)
    ports=p["ports"][net]
+   when(r["rng"]
+    ports=alShuffle(sort(copy(ports) lambda((a b) alphalessp(sprintf(nil "%L" a) sprintf(nil "%L" b)))) r["rng"]))
    tree=alAccess(r car(ports) net)
    foreach(port cdr(ports)
     targets=alAccess(r port net)

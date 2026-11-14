@@ -91,6 +91,24 @@ class OrchestrationTests(unittest.TestCase):
                 if target and not target.startswith(("https:", "http:", "mailto:")):
                     self.assertTrue((path.parent / target).is_file(), str(path) + ": " + target)
 
+    def test_seed_validation_and_candidate_sequence(self):
+        for value in (-1, al.MAX_SEED + 1, True, 2.5):
+            with self.assertRaises(ValueError):
+                al.check_seed(value)
+        self.assertEqual(al.candidate_seeds(17, 0, 2), (0, 19))
+        self.assertEqual(al.candidate_seeds(0, None, 2), (2, 0))
+        self.assertEqual(al.candidate_seeds(al.MAX_SEED, 5, 1), (5, 1))
+
+    def test_fingerprint_is_order_independent_and_detects_changes(self):
+        with tempfile.TemporaryDirectory() as directory:
+            p = Path(directory) / "routing.txt"
+            p.write_text("FIG B 1 2\nFIG A 3 4\n")
+            first = al.fingerprint(p)
+            p.write_text("FIG A 3 4\nFIG B 1 2\n")
+            self.assertEqual(first, al.fingerprint(p))
+            p.write_text("FIG A 3 5\nFIG B 1 2\n")
+            self.assertNotEqual(first, al.fingerprint(p))
+
 
 if __name__ == "__main__":
     unittest.main()

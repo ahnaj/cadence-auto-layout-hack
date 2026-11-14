@@ -66,3 +66,26 @@ procedure(alPhysicalPins(p design)
     nil nil t nil t "name" nil)
    unless(label error("Cannot create terminal-name display"))
   )))
+
+procedure(alWriteGeometry(p)
+ let((out)
+  when(alCfg("geometry_manifest")
+   out=outfile(alCfg("geometry_manifest"))
+   unless(out error("Cannot write geometry manifest"))
+   foreach(s p["shapes"] fprintf(out "SHAPE %L\n" s))
+   foreach(v p["viaSites"] fprintf(out "VIA %L\n" v))
+   foreach(i p["cv"]~>instances
+    fprintf(out "INSTANCE %L %L %L %L\n" i~>name i~>libName i~>cellName i~>transform))
+   foreach(term p["cv"]~>terminals
+    foreach(pin term~>pins fprintf(out "PIN %L %L %L %L\n" term~>name term~>direction pin~>fig~>lpp pin~>fig~>bBox)))
+   close(out))
+  when(alCfg("routing_manifest")
+   out=outfile(alCfg("routing_manifest"))
+   unless(out error("Cannot write routing manifest"))
+   foreach(fig p["routeFigs"]
+    if(fig~>objType=="stdVia" then
+     fprintf(out "VIA %L %L %L %L\n" fig~>net~>name fig~>viaHeader~>viaDefName fig~>origin fig~>orient)
+    else
+     fprintf(out "FIG %L %L %L %L\n" fig~>objType fig~>net~>name fig~>lpp fig~>bBox)))
+   close(out))
+  t))

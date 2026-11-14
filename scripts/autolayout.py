@@ -9,6 +9,7 @@ import math
 import os
 from pathlib import Path
 import re
+import secrets
 import shutil
 import signal
 import subprocess
@@ -194,6 +195,29 @@ printf("AL_DOCTOR_OK\\n")
     return status or (0 if "AL_DOCTOR_OK" in log else 1)
 
 
+MAX_SEED = 2147483646
+
+
+def check_seed(value):
+    if value is not None and (type(value) is not int or not 0 <= value <= MAX_SEED):
+        raise ValueError("Seeds must be integers between 0 and " + str(MAX_SEED))
+    return value
+
+
+def candidate_seeds(base, placement, index):
+    check_seed(base)
+    check_seed(placement)
+    return (index if placement is None else placement,
+            0 if base == 0 else 1 + (base - 1 + index) % MAX_SEED)
+
+
+def fingerprint(path):
+    if not path.is_file():
+        return None
+    records = sorted(path.read_text().splitlines())
+    return hashlib.sha256(("\n".join(records) + "\n").encode()).hexdigest()
+
+
 def generate(args, config):
     validate(config, physical=not args.dry_run)
     if not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", args.output_lib):
@@ -202,12 +226,17 @@ def generate(args, config):
         raise ValueError("Source and output libraries must differ")
     if args.iterations < 1 or args.iterations > 64:
         raise ValueError("iterations must be between 1 and 64")
+    base_seed = check_seed(getattr(args, "seed", None))
+    if base_seed is None:
+        base_seed = secrets.randbelow(MAX_SEED) + 1
+    fixed_placement = check_seed(getattr(args, "placement_seed", None))
     root = unique_root(args.work_dir)
     cds = root / "cds.lib"
     cds.write_text("INCLUDE " + json.dumps(str(Path(args.cds_lib).resolve())) + "\n")
     results = []
     for index in range(1 if args.dry_run else args.iterations):
         outlib = args.output_lib if args.iterations == 1 else args.output_lib + "_c%02d" % index
+        placement_seed, routing_seed = candidate_seeds(base_seed, fixed_placement, index)
         output = root / outlib
         height = args.height
         if args.optimize == "area" and config.get("candidate_heights"):
@@ -217,15 +246,21 @@ def generate(args, config):
         run = root / ("candidate_%02d" % index)
         code = "alGenerate(%s %s %s %s %s %d %s %s)\n" % (
             skill(args.source_lib), skill(args.cell), skill(args.view), skill(outlib),
-            skill(str(output)), index, skill(height), skill(args.dry_run))
+            skill(str(output)), placement_seed, skill(height), skill(args.dry_run))
         if not args.dry_run:
             code += "alVerify(%s %s %s %s %s %s)\n" % (
                 skill(outlib), skill(args.cell), skill(args.source_lib), skill(args.cell),
                 skill(args.view), skill(str(run)))
-        status, log = native(config, cds, run, code, args.timeout)
+        run_config = dict(config, routing_seed=routing_seed,
+                          geometry_manifest=str(run / "geometry.txt"),
+                          routing_manifest=str(run / "routing.txt"))
+        status, log = native(run_config, cds, run, code, args.timeout)
         result = describe(run, status, log)
         result.update({"library": outlib, "cell": args.cell, "source_lib": args.source_lib,
-                       "source_view": args.view, "candidate": index, "cds_lib": str(cds)})
+                       "source_view": args.view, "candidate": index, "cds_lib": str(cds),
+                       "base_seed": base_seed, "placement_seed": placement_seed, "routing_seed": routing_seed,
+                       "geometry_sha256": fingerprint(run / "geometry.txt"),
+                       "routing_sha256": fingerprint(run / "routing.txt")})
         if args.dry_run:
             if status == 0 and "AL_DRY_RUN" in log:
                 result["generation"] = "dry_run"
@@ -235,6 +270,9 @@ def generate(args, config):
     passed = [r for r in results if r["generation"] == "generated" and
               r["drc"] == "passed" and r["lvs"] == "passed" and r["extraction"] == "completed"]
     summary = {"candidates": results, "best_verified": min(passed, key=lambda r: r["area_um2"]) if passed else None}
+    summary["base_seed"] = base_seed
+    summary["equal_area_verified"] = [r for r in passed
+        if r["area_um2"] == summary["best_verified"]["area_um2"]] if passed else []
     (root / "summary.json").write_text(json.dumps(summary, indent=2))
     print("Results:", root / "summary.json")
     if args.dry_run:
@@ -274,6 +312,8 @@ def main(argv=None):
     gen.add_argument("--optimize", choices=("area", "fixed"), default="area")
     gen.add_argument("--iterations", type=int, default=1)
     gen.add_argument("--dry-run", action="store_true")
+    gen.add_argument("--seed", type=int, help="Reproducible routing seed; omitted chooses a random seed; 0 uses legacy traversal")
+    gen.add_argument("--placement-seed", type=int, help="Keep placement fixed across routing candidates")
     ver = commands.add_parser("verify")
     ver.add_argument("--lib", required=True)
     ver.add_argument("--cell", required=True)
@@ -309,6 +349,8 @@ def main(argv=None):
                 setattr(run_args, key, val)
             for key in ("source_lib", "cell", "output_lib"):
                 setattr(run_args, key, item[key])
+            run_args.seed = item.get("seed")
+            run_args.placement_seed = item.get("placement_seed")
             codes.append(generate(run_args, config))
         return int(any(codes))
     except (ValueError, OSError, KeyError) as exc:

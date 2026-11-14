@@ -14,3 +14,5 @@ Placement uses a greedy graph-trail heuristic across seeds, not exhaustive Euler
 Intermediate native cellviews are retained even after failure. Public CI exercises only open-source orchestration. Integration requires licensed tools.
 
 Paired placement aligns gate-matched NMOS/PMOS instances and checks common diffusion pitch. It searches both mirroring and paired order seeds. Conservative candidates can disable sharing or add outer routing clearance. A guarded same-net gap-fill stage handles narrow notches while checking other-net clearance; Diva still decides legality.
+
+Positive routing seeds use a local deterministic PRNG for equal-priority net ordering, port order and equal-cost heap ties. Seed 0 preserves baseline behavior. Native geometry manifests support reproducibility comparisons; they never substitute for DRC/LVS.

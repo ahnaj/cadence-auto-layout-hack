@@ -1,6 +1,6 @@
 # Native benchmark results
 
-Development-preview integration on Virtuoso IC6.1.8, NCSU CDK 1.6.0 / NCSU_TechLib_tsmc03d, Python 3.6.8, Linux. Results below are actual native DRC and LVS, not public-CI results. Dimensions are micrometers and areas square micrometers.
+Baseline development-preview integration (commit e69aca5, before seeded routing) on Virtuoso IC6.1.8, NCSU CDK 1.6.0 / NCSU_TechLib_tsmc03d, Python 3.6.8, Linux. Results below are actual native DRC and LVS, not public-CI results. Dimensions are micrometers and areas square micrometers.
 
 | Circuit | Width | Height | Area | DRC | LVS |
 |---|---:|---:|---:|---|---|
@@ -31,7 +31,7 @@ This is the best verified subset found, not a global optimum. The new generic en
 2. In an isolated Virtuoso process, load skill/load.il, a local ALconfig association list, and examples/fixtures.il.
 3. Call `alFixtures("FRESH_TEST_SOURCES" "/absolute/new/source/library")`. Use examples/variants.il and alVariants for width/pin/connectivity variants, and examples/multiplicity.il with alMultiplicityFixture for m=2. These are connectivity-only database fixtures; regenerate them through the scripts instead of running graphical Check and Save without adding schematic wires.
 4. Run benchmark with a private JSON manifest:
-   `[{"source_lib":"FRESH_TEST_SOURCES","cell":"INV","output_lib":"FRESH_TEST_LAYOUTS"}]`.
+   `[{"source_lib":"FRESH_TEST_SOURCES","cell":"INV","output_lib":"FRESH_TEST_LAYOUTS","seed":0}]`.
 5. Repeat for each fixture. Use paired placement and the full manufacturing grid for AOI21. Compare fresh candidates through summary.json.
 6. Keep console.log, virtuoso.log, execution.json, the extracted database and lvs/si.out together.
 
@@ -40,3 +40,5 @@ The final verified regression used paired placement and five configured routing 
 On the tested workstation, .local/release_evidence.json indexes the eight final unmodified native log sets. Each run includes an engine snapshot and SHA256 hashes. The release regression also reran the simpler gates after the gap-repair changes; the table uses those final measured bounds. An earlier three-metal independent-row baseline had height 5.64 for INV/NAND2/NOR2; paired placement reduced them to 4.92.
 
 A subsequent supply-pin placement change pins both supplies on their actual rails. Its native inverter regression also passed DRC and LVS, with unchanged physical bounds.
+
+Use --seed 0 to replay the baseline traversal. Seeded-router integration results are recorded separately in SEEDS.md; changing seeds may change routing success.

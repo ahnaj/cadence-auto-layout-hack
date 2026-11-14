@@ -44,3 +44,25 @@ procedure(alProp(inst name @optional fallback)
 procedure(alDirection(cv name)
  let((term) term=dbFindTermByName(cv name)
   unless(term error("Missing source terminal %s" name)) term~>direction))
+
+; Local PRNG state avoids changing Virtuoso's session-global random generator.
+procedure(alRng(seed)
+ let((rng)
+  unless(integerp(seed) && seed>=0 && seed<=2147483646 error("Invalid routing seed"))
+  rng=makeTable('alRandom nil) rng["state"]=mod(seed 2147483646)+1 rng))
+procedure(alRand(rng bound)
+ let((value)
+  unless(integerp(bound) && bound>0 error("Invalid random bound"))
+  value=rng["state"]*48271.0
+  rng["state"]=fix(value-floor(value/2147483647.0)*2147483647.0)
+  mod(rng["state"] bound)))
+procedure(alShuffle(items rng)
+ prog((array count idx j value result)
+  unless(items return(nil))
+  count=length(items) array=makeVector(count nil) idx=0
+  foreach(item items array[idx]=item idx=idx+1)
+  idx=count-1
+  while(idx>0
+   j=alRand(rng idx+1) value=array[idx] array[idx]=array[j] array[j]=value idx=idx-1)
+  for(idx 0 count-1 result=cons(array[idx] result))
+  return(reverse(result))))
