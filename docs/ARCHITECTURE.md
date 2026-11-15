@@ -4,7 +4,7 @@
 - device_mapper.il probes installed PCells, ports, grid, routing widths/spacings and native via geometry in an isolated output library.
 - placement.il derives row geometry from those measurements, orders each polarity's connectivity graph, and tries source/drain mirroring. Adjacent devices share diffusion only with equal W/L, compatible polarity/body and the same endpoint net.
 - geometry.il creates native PCell instances, rectangles, vias, electrical terminals, physical pin shapes and text displays.
-- router.il uses a bounded grid search and priority queue. Different-net conductors and cut spacing form obstacles. Paths connect each physical terminal to the existing tree. Commit-time via checks can reject a candidate.
+- router.il uses a bounded grid search and priority queue. Different-net conductors and cut spacing form obstacles. Paths grow a tree to the nearest remaining physical terminal. Search states include incoming direction so equal-cost routes minimize bends before random tie breaking. Commit-time via checks can reject a candidate.
 - verification.il runs real Diva and audits native database opens.
 - pipeline.il combines the modules without circuit-specific coordinates.
 - scripts/autolayout.py handles configuration, isolated runs, process timeouts, candidate selection and evidence parsing.

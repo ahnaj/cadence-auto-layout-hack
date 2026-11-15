@@ -218,6 +218,20 @@ def fingerprint(path):
     return hashlib.sha256(("\n".join(records) + "\n").encode()).hexdigest()
 
 
+def routing_cost(log):
+    match = re.search(r"AL_ROUTE_COST wire_um=([0-9.]+) vias=(\d+) bends=(\d+)", log)
+    if not match:
+        return {}
+    return {"routed_wire_um": float(match.group(1)),
+            "routed_vias": int(match.group(2)), "routed_bends": int(match.group(3))}
+
+
+def candidate_rank(result):
+    return (result["area_um2"], result.get("routed_wire_um", float("inf")),
+            result.get("routed_vias", float("inf")),
+            result.get("routed_bends", float("inf")))
+
+
 def generate(args, config):
     validate(config, physical=not args.dry_run)
     if not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", args.output_lib):
@@ -256,6 +270,7 @@ def generate(args, config):
                           routing_manifest=str(run / "routing.txt"))
         status, log = native(run_config, cds, run, code, args.timeout)
         result = describe(run, status, log)
+        result.update(routing_cost(log))
         result.update({"library": outlib, "cell": args.cell, "source_lib": args.source_lib,
                        "source_view": args.view, "candidate": index, "cds_lib": str(cds),
                        "base_seed": base_seed, "placement_seed": placement_seed, "routing_seed": routing_seed,
@@ -269,7 +284,7 @@ def generate(args, config):
         print(json.dumps(result, indent=2))
     passed = [r for r in results if r["generation"] == "generated" and
               r["drc"] == "passed" and r["lvs"] == "passed" and r["extraction"] == "completed"]
-    summary = {"candidates": results, "best_verified": min(passed, key=lambda r: r["area_um2"]) if passed else None}
+    summary = {"candidates": results, "best_verified": min(passed, key=candidate_rank) if passed else None}
     summary["base_seed"] = base_seed
     summary["equal_area_verified"] = [r for r in passed
         if r["area_um2"] == summary["best_verified"]["area_um2"]] if passed else []

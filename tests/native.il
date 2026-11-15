@@ -25,3 +25,27 @@ let((a b values first second heap)
  unless(cadr(alPop(heap))==4 && cadr(alPop(heap))==5 && cadr(alPop(heap))==99
   error("Heap tie-breaking changed path-cost priority"))
  printf("AL_SEED_TESTS_OK\n"))
+
+; Equal-length routes must minimize bends before consulting the random seed.
+let((ALconfig r tech plan path previous direction turns length a b nextDirection)
+ ALconfig=list(list("routing_vias" nil))
+ tech=makeTable('testTech nil) plan=makeTable('testPlan nil)
+ tech["width"]=makeTable('testWidth nil) tech["width"]["metal1"]=0.2
+ tech["spacing"]=makeTable('testSpacing nil) tech["spacing"]["metal1"]=0.2
+ r=makeTable('testRouter nil)
+ r["tech"]=tech r["plan"]=plan r["layers"]=list("metal1")
+ r["width"]=10.0 r["height"]=10.0 r["grid"]=1.0 r["nx"]=11 r["ny"]=11
+ r["existing"]=makeTable('testExisting nil)
+ foreach(seed '(0 17 18 19 20)
+  r["rng"]=if(seed>0 alRng(seed) nil)
+  r["cache"]=makeTable('testCache nil)
+  path=alSearch(r list(alNode(r 0 1 1)) list(alNode(r 0 8 8)) "N")
+  unless(length(path)==15 error("Search did not choose a shortest path"))
+  previous=car(path) direction=nil turns=0
+  foreach(step cdr(path)
+   a=alDecode(r car(previous)) b=alDecode(r car(step))
+   nextDirection=cadr(a)==cadr(b)
+   when(direction && car(direction)!=nextDirection turns=turns+1)
+   direction=list(nextDirection) previous=step)
+  unless(turns==1 error("Equal-cost route has unnecessary bends: %d" turns)))
+ printf("AL_SHORTEST_ROUTE_TESTS_OK\n"))

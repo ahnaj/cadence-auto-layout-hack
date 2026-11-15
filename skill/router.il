@@ -3,7 +3,9 @@ procedure(alHeap(capacity)
  let((h) h=makeTable('alHeap nil) h["data"]=makeVector(capacity+1 nil) h["size"]=0 h))
 procedure(alHeapLess(a b)
  car(a)<car(b) || (car(a)==car(b) &&
-  if(cadddr(a) cadddr(a) 0)<if(cadddr(b) cadddr(b) 0)))
+  (if(nth(4 a) nth(4 a) 0)<if(nth(4 b) nth(4 b) 0) ||
+   (if(nth(4 a) nth(4 a) 0)==if(nth(4 b) nth(4 b) 0) &&
+    if(cadddr(a) cadddr(a) 0)<if(cadddr(b) cadddr(b) 0)))))
 procedure(alTie(r)
  if(r["rng"] alRand(r["rng"] 2147483646) 0))
 procedure(alPush(h entry)
@@ -88,29 +90,41 @@ procedure(alNeighbors(r node net)
     when(legal result=cons(list(next alCfg("via_cost" 12.0) name existing) result))))
   result))
 procedure(alSearch(r starts targets net)
- prog((heap cost prev target entry node g path link next trial visits)
+ prog((heap cost bends prev target entry state node g turns path link next trial visits
+       heading direction nextState nextTurns here there)
   heap=alHeap(alCfg("max_search_nodes" 200000))
-  cost=makeTable('alCost nil) prev=makeTable('alPrevious nil) target=makeTable('alTargets nil)
+  cost=makeTable('alCost nil) bends=makeTable('alBends nil)
+  prev=makeTable('alPrevious nil) target=makeTable('alTargets nil)
   foreach(n targets target[n]=t)
-  foreach(n starts cost[n]=0.0 alPush(heap list(0.0 n 0.0 alTie(r))))
+  foreach(n starts
+   state=3*n cost[state]=0.0 bends[state]=0
+   alPush(heap list(0.0 state 0.0 alTie(r) 0)))
   visits=0
   while(heap["size"]>0
-   entry=alPop(heap) node=cadr(entry) g=caddr(entry)
-   when(cost[node]==g
+   entry=alPop(heap) state=cadr(entry) node=fix(state/3)
+   heading=mod(state 3) g=caddr(entry) turns=nth(4 entry)
+   when(cost[state]==g && bends[state]==turns
     when(target[node]
      path=list(list(node nil nil))
-     while(prev[node]
-      link=prev[node]
+     while(prev[state]
+      link=prev[state]
       rplaca(path list(node cadr(link) caddr(link)))
-      node=car(link) path=cons(list(node nil nil) path))
+      state=car(link) node=fix(state/3)
+      path=cons(list(node nil nil) path))
      return(path))
     visits=visits+1
     when(visits>alCfg("max_search_nodes" 200000) error("Routing search budget reached for %s" net))
+    here=alDecode(r node)
     foreach(edge alNeighbors(r node net)
-     next=car(edge) trial=g+cadr(edge)
-     when(!numberp(cost[next]) || trial<cost[next]
-      cost[next]=trial prev[next]=list(node caddr(edge) cadddr(edge))
-      alPush(heap list(trial next trial alTie(r)))))))
+     next=car(edge) trial=g+cadr(edge) there=alDecode(r next)
+     direction=if(caddr(edge) 0 if(cadr(here)==cadr(there) 2 1))
+     nextState=3*next+direction
+     nextTurns=turns+if(heading!=0 && direction!=0 && heading!=direction 1 0)
+     when(!numberp(cost[nextState]) || trial<cost[nextState] ||
+      (trial==cost[nextState] && nextTurns<bends[nextState])
+      cost[nextState]=trial bends[nextState]=nextTurns
+      prev[nextState]=list(state caddr(edge) cadddr(edge))
+      alPush(heap list(trial nextState trial alTie(r) nextTurns))))))
   error("No spacing-legal physical route for %s" net)))
 procedure(alCommit(r path net)
  let((p previous a b v x y segment direction nextDirection box)
@@ -118,14 +132,17 @@ procedure(alCommit(r path net)
   foreach(step cdr(path)
    if(cadr(step) then
     when(segment alRect(p car(segment) cadr(segment) net) segment=nil)
+     direction=nil
     unless(caddr(step)
      v=alDecode(r car(step)) x=cadr(v)*r["grid"] y=caddr(v)*r["grid"]
      foreach(s r["tech"]["vias"][cadr(step)]["shapes"]
       unless(alLegal(r car(s) alMove(cadr(s) x y) if(member(car(s) r["layers"]) net nil))
        error("A proposed path contains conflicting via cuts")))
      alVia(p cadr(step) x y net)
+     p["routeViaCount"]=p["routeViaCount"]+1
      r["existing"][sprintf(nil "%s|%s|%d|%d" net cadr(step) cadr(v) caddr(v))]=t)
    else
+    p["routeWireLength"]=p["routeWireLength"]+r["grid"]
     a=alPointBox(r car(previous)) b=alPointBox(r car(step))
     v=alDecode(r car(step))
     nextDirection=alX0(a)==alX0(b)
@@ -134,13 +151,15 @@ procedure(alCommit(r path net)
      a=cadr(segment)
      segment=list(car(segment) alBox(min(alX0(a) alX0(box)) min(alY0(a) alY0(box)) max(alX1(a) alX1(box)) max(alY1(a) alY1(box))))
     else
-     when(segment alRect(p car(segment) cadr(segment) net))
+     when(segment
+      p["routeBends"]=p["routeBends"]+1
+      alRect(p car(segment) cadr(segment) net))
      segment=list(nth(car(v) r["layers"]) box))
     direction=nextDirection)
    previous=step)
   when(segment alRect(p car(segment) cadr(segment) net))))
 procedure(alRoute(p)
- let((r tree ports path targets order rank idx seed)
+ let((r tree ports path targets order rank idx seed remaining access reached)
   r=makeTable('alRouter nil) r["plan"]=p r["tech"]=p["tech"] r["layers"]=p["tech"]["layers"]
   r["width"]=p["width"] r["height"]=p["height"] r["grid"]=p["tech"]["grid"]*alCfg("routing_grid_multiple" 1)
   r["nx"]=fix(r["width"]/r["grid"])+1 r["ny"]=fix(r["height"]/r["grid"])+1
@@ -164,20 +183,33 @@ procedure(alRoute(p)
    when(mod(alCfg("candidate_seed" 0) 2)==1 order=reverse(order)))
   order=append(remove(p["vdd"] remove(p["gnd"] order)) list(p["gnd"] p["vdd"]))
   p["routing"]=t
+  p["routeWireLength"]=0.0 p["routeViaCount"]=0 p["routeBends"]=0
   foreach(net order
    r["cache"]=makeTable('alCache nil)
-   ports=p["ports"][net]
-   when(r["rng"]
-    ports=alShuffle(sort(copy(ports) lambda((a b) alphalessp(sprintf(nil "%L" a) sprintf(nil "%L" b)))) r["rng"]))
+   ; Start at the largest pin (the rail for supplies), then grow to the nearest pin.
+   ports=sort(copy(p["ports"][net]) lambda((a b)
+    if(alW(cadr(a))*alH(cadr(a))==alW(cadr(b))*alH(cadr(b))
+     alphalessp(sprintf(nil "%L" a) sprintf(nil "%L" b))
+     alW(cadr(a))*alH(cadr(a))>alW(cadr(b))*alH(cadr(b)))))
    tree=alAccess(r car(ports) net)
-   foreach(port cdr(ports)
-    targets=alAccess(r port net)
-    path=alSearch(r targets tree net)
+   remaining=cdr(ports)
+   while(remaining
+    targets=nil access=nil
+    foreach(port remaining
+     access=cons(list(port alAccess(r port net)) access)
+     targets=append(cadar(access) targets))
+    path=alSearch(r tree targets net)
+    reached=car(car(last(path)))
     alCommit(r path net)
     foreach(step path tree=cons(car(step) tree))
-    tree=append(targets tree)
+    foreach(item access
+     when(member(reached cadr(item))
+      remaining=remove(car(item) remaining)
+      tree=append(cadr(item) tree)))
     r["cache"]=makeTable('alCache nil))
    printf("AL_ROUTED %s %s\n" p["cell"] net))
+  printf("AL_ROUTE_COST wire_um=%.9f vias=%d bends=%d\n"
+   p["routeWireLength"] p["routeViaCount"] p["routeBends"])
   p["routing"]=nil t))
 
 ; Same-net conductors can still violate notch/spacing rules.

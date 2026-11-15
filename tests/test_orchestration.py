@@ -11,6 +11,17 @@ spec.loader.exec_module(al)
 
 
 class OrchestrationTests(unittest.TestCase):
+    def test_routing_rank_prefers_quality_to_seed(self):
+        a = dict(area_um2=10, routed_wire_um=20, routed_vias=4, routed_bends=8)
+        b = dict(a, routed_wire_um=19, routing_seed=99)
+        self.assertLess(al.candidate_rank(b), al.candidate_rank(a))
+        self.assertLess(al.candidate_rank(dict(a, routed_vias=3)), al.candidate_rank(a))
+        self.assertLess(al.candidate_rank(dict(a, routed_bends=7)), al.candidate_rank(a))
+        self.assertLess(al.candidate_rank(dict(a, area_um2=9)), al.candidate_rank(b))
+        self.assertEqual(al.routing_cost("no native measurement"), {})
+        self.assertEqual(al.routing_cost("AL_ROUTE_COST wire_um=12.500000000 vias=3 bends=2"),
+                         dict(routed_wire_um=12.5, routed_vias=3, routed_bends=2))
+
     def test_skill_escaping(self):
         self.assertEqual(al.skill('a"b\\c'), '"a\\"b\\\\c"')
         self.assertEqual(al.skill({"x": [1, None, True]}), '(("x" (1 nil t)))')

@@ -19,10 +19,10 @@ candidate completed native Diva extraction, passed DRC with zero violations, and
 matched its source schematic in LVS. These are examples, not a claim of a global
 area optimum; new outputs require their own verification.
 
-### Same area, different routing
+### Short routes before seed variation
 
 Both NAND2 candidates use placement seed 0 and measure **6.72 × 6.12 µm**
-(**41.1264 µm²**). Changing the routing seed changes the metal routes.
+(**41.1264 µm²**). Both now use 8.34 micrometers of routed wire and zero new routing vias. Seeds may select equally good alternatives; they do not earn a reward for different geometry.
 
 | Routing seed 17 | Routing seed 18 |
 | --- | --- |
@@ -41,7 +41,7 @@ Both NAND2 candidates use placement seed 0 and measure **6.72 × 6.12 µm**
 ![Generated XOR2 layout with transistor rows, multilayer routing and physical pin labels](docs/images/xor2.png)
 
 See [image provenance](docs/images/README.md), [benchmarks](docs/BENCHMARKS.md),
-and [seed reproducibility results](docs/SEEDS.md).
+[routing-quality comparison](docs/ROUTING_QUALITY.md), and [seed reproducibility results](docs/SEEDS.md).
 
 ## Install
 
@@ -85,7 +85,7 @@ bin/autolayout --cds-lib /path/to/cds.lib generate \
 
 This tries routing seeds 17, 18, 19 and 20 with the same placement and height. Without --placement-seed, the existing placement search advances its ordering index for each candidate. Re-run an individual candidate with its recorded placement_seed and routing_seed.
 
-Reports include both seeds, geometry/routing fingerprints and all verified equal-area alternatives. Different seeds can converge to the same route or fail; native DRC/LVS remains mandatory. Seed 0 retains the original deterministic router for baseline reproduction. See [seed regression evidence](docs/SEEDS.md).
+Reports include both seeds, geometry/routing fingerprints and all verified equal-area alternatives. Different seeds can converge to the same route or fail; native DRC/LVS remains mandatory. Seed 0 disables random tie breaking. Verified candidates rank by area, routed wire length, via count and bends; different seeds are allowed to converge on the same route. See [seed regression evidence](docs/SEEDS.md).
 
 Each run receives a fresh directory and private `cds.lib` which includes your source library definitions. Candidate libraries are named `MY_AUTO_c00`, etc. for multiple iterations. The summary identifies the smallest **verified** candidate. Failed candidates and real logs remain for diagnosis; no candidate is silently promoted.
 

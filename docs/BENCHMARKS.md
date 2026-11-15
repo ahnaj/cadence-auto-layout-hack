@@ -41,4 +41,6 @@ On the tested workstation, .local/release_evidence.json indexes the eight final 
 
 A subsequent supply-pin placement change pins both supplies on their actual rails. Its native inverter regression also passed DRC and LVS, with unchanged physical bounds.
 
-Use --seed 0 to replay the baseline traversal. Seeded-router integration results are recorded separately in SEEDS.md; changing seeds may change routing success.
+The baseline figures above predate the routing-quality fix. Seed 0 now disables random tie breaking; replay historical geometry with its recorded engine snapshot. Seeded-router integration results are recorded separately in SEEDS.md; changing seeds may change routing success.
+
+The routing-quality update preserves the pictured cell dimensions while reducing fragmented geometry. See [native before/after measurements](ROUTING_QUALITY.md).
